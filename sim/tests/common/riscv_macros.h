@@ -99,11 +99,28 @@
 #define EXTRA_INIT
 #define EXTRA_INIT_TIMER
 
+#define PRINT_ADDR_31_12 0xf0000
+
+#define PRINT(id, msg_addr, print_addr)   \
+  /* loop init */                         \
+  lui a6, print_addr;                     \
+  la a7, msg_addr;                        \
+  /* loop iter */                         \
+print_next_iter_##id:                     \
+  lb a5, 0(a7);                           \
+  beq a5, x0, print_break_##id;           \
+  sw a5, 0(a6);                           \
+  addi a7, a7, 1;                         \
+  jal x0, print_next_iter_##id;           \
+print_break_##id:
+
 #define INTERRUPT_HANDLER j other_exception /* No interrupts should occur */
 
 #define RVTEST_CODE_BEGIN                                               \
         .section .text.init;                                            \
-        .org 0xC0, 0x00;                                                \
+        ILL_INSTR_MSG:                                                  \
+        .string "ill_instr\n";                                          \
+        .org 0x100, 0x0;                                                \
         .balign  64;                                                    \
         .weak stvec_handler;                                            \
         .weak mtvec_handler;                                            \
@@ -116,6 +133,8 @@ trap_vector:                                                            \
         beq a4, a5, _report;                                            \
         li a5, CAUSE_MACHINE_ECALL;                                     \
         beq a4, a5, _report;                                            \
+        /* print our message */                                         \
+        PRINT(0, ILL_INSTR_MSG, PRINT_ADDR_31_12)                       \
         /* if an mtvec_handler is defined, jump to it */                \
         la a4, mtvec_handler;                                           \
         beqz a4, 1f;                                                    \
@@ -133,6 +152,7 @@ _report:                                                                \
         j sc_exit;                                                      \
         .balign  64;                                                    \
         .globl _start;                                                  \
+        .section .text.start;                                           \
 _start:                                                                 \
         RISCV_MULTICORE_DISABLE;                                        \
         /*INIT_SPTBR;*/                                                 \
