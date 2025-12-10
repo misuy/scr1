@@ -25,23 +25,6 @@
 Для реализации обработчика необходимо модифицировать код под меткой `trap_vector:` в `/sim/tests/common/riscv_macros.h`.
 
 ```
-#define PRINT_ADDR_31_12 0xf0000
-
-#define PRINT(id, msg_addr, print_addr)   \
-  /* loop init */                         \
-  lui a6, print_addr;                     \
-  la a7, msg_addr;                        \
-  /* loop iter */                         \
-print_next_iter_##id:                     \
-  lb a5, 0(a7);                           \
-  beq a5, x0, print_break_##id;           \
-  sw a5, 0(a6);                           \
-  addi a7, a7, 1;                         \
-  jal x0, print_next_iter_##id;           \
-print_break_##id:
-
-#define INTERRUPT_HANDLER j other_exception /* No interrupts should occur */
-
 #define RVTEST_CODE_BEGIN                                               \
         .section .text.init;                                            \
         ILL_INSTR_MSG:                                                  \
@@ -59,8 +42,11 @@ trap_vector:                                                            \
         beq a4, a5, _report;                                            \
         li a5, CAUSE_MACHINE_ECALL;                                     \
         beq a4, a5, _report;                                            \
+        li a5, CAUSE_ILLEGAL_INSTRUCTION;                               \
+        bne a4, a5, skip_print;                                         \
         /* print our message */                                         \
         PRINT(0, ILL_INSTR_MSG, PRINT_ADDR_31_12)                       \
+skip_print:                                                             \
         /* if an mtvec_handler is defined, jump to it */                \
         la a4, mtvec_handler;                                           \
         beqz a4, 1f;                                                    \
@@ -167,23 +153,25 @@ Disassembly of section .text.start:
 37   E   00001204   00000000   0000bc00   mcause     00000002
 37   E   00001204   00000000   0000bc00   mtval      00000000
 40   N   0000bc00   000047a1   0000bc04   x14_a4     00000002
-41   N   0000bc04   04f70263   0000bc06   x15_a5     00000008
+41   N   0000bc04   04f70563   0000bc06   x15_a5     00000008
 42   N   0000bc06   000047a5   0000bc0a   ---        --------
-43   N   0000bc0a   02f70f63   0000bc0c   x15_a5     00000009
+43   N   0000bc0a   04f70263   0000bc0c   x15_a5     00000009
 44   N   0000bc0c   000047ad   0000bc10   ---        --------
-45   N   0000bc10   02f70c63   0000bc12   x15_a5     0000000b
-46   N   0000bc12   47ad0837   0000bc16   ---        --------
-48   N   0000bc16   02f70897   0000bc1a   x16_a6     f0000000
-50   N   0000bc1a   f0008893   0000bc1e   x17_a7     0000bc1a
-52   N   0000bc1e   00008783   0000bc22   x17_a7     0000bb00
-55   N   0000bc22   0000c791   0000bc26   x15_a5     00000069
-56   N   0000bc26   00f82023   0000bc28   ---        --------
-58   N   0000bc28   00000885   0000bc2c   ---        --------
-59   N   0000bc2c   ff5ff06f   0000bc2e   x17_a7     0000bb01
-60   N   0000bc2e   08855717   0000bc22   ---        --------
+45   N   0000bc10   02f70f63   0000bc12   x15_a5     0000000b
+46   N   0000bc12   00004789   0000bc16   ---        --------
+47   N   0000bc16   02f71063   0000bc18   x15_a5     00000002
+48   N   0000bc18   f0000837   0000bc1c   ---        --------
+49   N   0000bc1c   00000897   0000bc20   x16_a6     f0000000
+50   N   0000bc20   ee088893   0000bc24   x17_a7     0000bc20
+51   N   0000bc24   00088783   0000bc28   x17_a7     0000bb00
+53   N   0000bc28   0000c791   0000bc2c   x15_a5     00000069
+54   N   0000bc2c   00f82023   0000bc2e   ---        --------
+56   N   0000bc2e   00000885   0000bc32   ---        --------
+57   N   0000bc32   ff5ff06f   0000bc34   x17_a7     0000bb01
+58   N   0000bc34   ffff5717   0000bc28   ---        --------
 ```
 
-Видим срабатывание trap в строках с `Event == E`. Далее происходит переход по адресу `trap_vector:`, где можно увидеть вывод строки (инструкции 0000bc22 -- 0000bc2e выполняются для каждого символа).
+Видим срабатывание trap в строках с `Event == E`. Далее происходит переход по адресу `trap_vector:`, где можно увидеть вывод строки (инструкции 0000bc28 -- 0000bc34 выполняются для каждого символа).
 
 `simx.vcd` -- waveform
 

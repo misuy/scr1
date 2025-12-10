@@ -133,8 +133,11 @@ trap_vector:                                                            \
         beq a4, a5, _report;                                            \
         li a5, CAUSE_MACHINE_ECALL;                                     \
         beq a4, a5, _report;                                            \
+        li a5, CAUSE_ILLEGAL_INSTRUCTION;                               \
+        bne a4, a5, skip_print;                                         \
         /* print our message */                                         \
         PRINT(0, ILL_INSTR_MSG, PRINT_ADDR_31_12)                       \
+skip_print:                                                             \
         /* if an mtvec_handler is defined, jump to it */                \
         la a4, mtvec_handler;                                           \
         beqz a4, 1f;                                                    \
